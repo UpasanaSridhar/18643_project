@@ -1,11 +1,18 @@
 CXX ?= g++
 CXXFLAGS ?= -O2 -std=c++17 -Wall -Wextra -Wno-unknown-pragmas
 LD_PARAMS ?=
+OPENCL_ROOT ?= /usr
 .PHONY: all test sweep quickld-generated clean FORCE
 all: test_hls
 
 test_hls: src/ld.cpp src/test_hls.cpp include/ld.hpp hls/ld_top.cpp hls/ld_microkernel.hpp hls/ld_config.hpp FORCE
 	$(CXX) $(CXXFLAGS) $(LD_PARAMS) -Iinclude src/ld.cpp src/test_hls.cpp hls/ld_top.cpp -o $@
+
+test_fpga: src/ld.cpp src/test_fpga.cpp src/test_quickLD.cpp include/test_quickLD.hpp include/ld.hpp include/vcf_loader.hpp hls/ld_config.hpp FORCE
+	$(CXX) $(CXXFLAGS) $(LD_PARAMS) -Iinclude -I$(OPENCL_ROOT)/include src/ld.cpp src/test_fpga.cpp src/test_quickLD.cpp -L$(OPENCL_ROOT)/lib -lOpenCL -lz -o $@
+
+test_fpga_inline: src/test_fpga_inline.cpp hls/ld_config.hpp FORCE
+	$(CXX) $(CXXFLAGS) $(LD_PARAMS) -I$(OPENCL_ROOT)/include src/test_fpga_inline.cpp -L$(OPENCL_ROOT)/lib -lOpenCL -o $@
 
 generate_hls_vcf: src/ld.cpp src/generate_hls_vcf.cpp include/ld.hpp hls/ld_config.hpp FORCE
 	$(CXX) $(CXXFLAGS) $(LD_PARAMS) -Iinclude src/ld.cpp src/generate_hls_vcf.cpp -o $@
@@ -28,4 +35,4 @@ sweep:
 	  done; \
 	done
 clean:
-	rm -f test_hls generate_hls_vcf
+	rm -f test_hls test_quickLD test_fpga test_fpga_inline generate_hls_vcf

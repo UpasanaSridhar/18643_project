@@ -78,3 +78,36 @@ The script creates `hls_generated.vcf`, parses it to MDF, runs the BLIS CPU
 backend with `-r2limit 0`, and writes `quickld_report.txt` in the chosen output
 directory. Reuse a fresh output directory on repeated runs: upstream quickLD
 renames existing parsed/MDF directories rather than overwriting them.
+
+### CPU quickLD and FPGA integration tests
+
+`test_fpga` loads the bundled quickLD VCF (including `.vcf.gz`) completely
+into memory, selects complete biallelic haploid records that fit the HLS compile
+limits, runs quickLD's single-threaded BLIS CPU flow, then invokes the OpenCL
+FPGA kernel on the same in-memory data and checks its counts against a reference.
+
+```sh
+make test_fpga
+./test_fpga build/ld_top.xclbin ld_top quickLD/test_dataset/vcf/test_covid.vcf.gz 0 quickld_test_run
+```
+
+`test_fpga` is the Xilinx OpenCL host driver for an xclbin containing `ld_top`; it uploads
+the same packed VCF matrix, launches the kernel, reads back the count matrix,
+and validates every element. The xclbin's kernel name must match the second
+argument (normally `ld_top`).
+
+```sh
+make test_fpga OPENCL_ROOT=/path/to/opencl
+./test_fpga build/ld_top.xclbin ld_top
+```
+
+For a standalone FPGA smoke test with a small inline 3 × 8 binary matrix and
+known intersection counts, without quickLD or a VCF:
+
+```sh
+make test_fpga_inline OPENCL_ROOT=/path/to/opencl
+./test_fpga_inline build/ld_top.xclbin ld_top
+```
+
+Compile with the same `LD_PARAMS` as the xclbin, especially `LD_MAX_K`, which
+sets the packed input stride.
