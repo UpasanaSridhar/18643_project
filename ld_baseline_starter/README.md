@@ -101,13 +101,15 @@ make test_fpga OPENCL_ROOT=/path/to/opencl
 ./test_fpga build/ld_top.xclbin ld_top
 ```
 
-For a standalone FPGA smoke test with a small inline 3 × 8 binary matrix and
-known intersection counts, without quickLD or a VCF:
+For a standalone FPGA test using the same generated input, reference checks,
+and trial counts as `test_hls`, without quickLD or a VCF:
 
 ```sh
 make test_fpga_inline OPENCL_ROOT=/path/to/opencl
-./test_fpga_inline build/ld_top.xclbin ld_top
+./test_fpga_inline build/ld_top.xclbin 10 65 17 ld_top
 ```
 
 Compile with the same `LD_PARAMS` as the xclbin, especially `LD_MAX_K`, which
 sets the packed input stride.
+Timing includes OpenCL launch and synchronization for each batch; transfers and
+setup are excluded, so it is not directly comparable to native call timing.
