@@ -1,5 +1,55 @@
 # Linkage disequilibrium baseline starter
 
+For the Vitis HLS project:
+
+- **HLS component:** Add all files in `hls/`.
+- **Testbench:** Add `src/test_hls.cpp`, `hls/ld_config.hpp`, `src/ld.cpp`, and `include/ld.hpp`.
+
+## FPGA integration in Vitis Unified IDE
+
+The following uses a Vitis acceleration platform compatible with the target
+board. A device part alone is sufficient for HLS synthesis, but building and
+running the complete system also requires a compatible platform, target Linux
+image, and OpenCL runtime. Menu names can vary between Vitis releases.
+
+1. Create an **HLS component** for the target platform. Add `hls/ld_top.cpp`,
+   `hls/ld_microkernel.hpp`, and `hls/ld_config.hpp` as design sources; set
+   `ld_top` as the top function. `hls/run_hls.tcl` is an optional command-line
+   script, not a C++ design source. Add the testbench files listed above and
+   configure the `include/` directory as an include path. Run C simulation,
+   then synthesize and package the component as a Vitis kernel (`.xo`).
+2. Create an **application component** for the platform's host processor. For
+   the generated-input FPGA test, add `src/test_fpga_inline.cpp`, `src/ld.cpp`,
+   `include/ld.hpp`, and `hls/ld_config.hpp`. Add `include/` to the compiler
+   include paths, enable C++17, and link the platform's OpenCL library.
+   Keep the relative source/header layout when importing the files. The host
+   and HLS component must use identical `LD_PARAMS` definitions, particularly
+   `LD_MAX_K`, which determines the input buffer stride.
+3. Create a **system project** for the same platform. Add the HLS and
+   application components, place the HLS kernel in a binary container, then
+   build and package the system for hardware emulation or hardware. Vitis
+   produces the host executable and an xclbin; use the generated kernel name
+   (normally `ld_top`). Follow the platform's deployment instructions for the
+   selected target and ensure its OpenCL runtime is available.
+4. Run the host application on the target or in the configured emulation
+   environment, passing the path to the generated xclbin and test dimensions:
+
+   ```sh
+   ./test_fpga_inline /path/to/generated.xclbin 10 65 17 ld_top
+   ```
+
+   The host checks the FPGA count matrix and derived r² against the same CPU
+   reference used by `test_hls`. Its timed batches include OpenCL launch and
+   synchronization overhead. HLS C simulation uses `test_hls.cpp`; the OpenCL
+   host is an application component, not an HLS testbench.
+
+For the VCF variant, use `src/test_fpga.cpp`, `src/ld.cpp`,
+`include/vcf_loader.hpp`, `include/ld.hpp`, and `hls/ld_config.hpp` in the
+application component. Link OpenCL and zlib, and provide the VCF on the target.
+
+See AMD's [Vitis system project tutorial](https://docs.amd.com/r/2024.1-English/Vitis-Tutorials-Getting-Started/Creating-the-System-Project)
+and [HLS component overview](https://docs.amd.com/r/2025.1-English/Vitis-Tutorials-Getting-Started/Using-the-New-Vitis-Unified-IDE).
+
 Three pieces only: **quickLD** as the external CPU/GPU baseline, a **naive packed-popcount C++ reference**, and a **configurable complete-LD Vitis HLS kernel** for Ultra96-V2. The bit-serial implementation is deliberately postponed.
 
 ## Contents
@@ -78,38 +128,3 @@ The script creates `hls_generated.vcf`, parses it to MDF, runs the BLIS CPU
 backend with `-r2limit 0`, and writes `quickld_report.txt` in the chosen output
 directory. Reuse a fresh output directory on repeated runs: upstream quickLD
 renames existing parsed/MDF directories rather than overwriting them.
-
-### CPU quickLD and FPGA integration tests
-
-`test_fpga` loads the bundled quickLD VCF (including `.vcf.gz`) completely
-into memory, selects complete biallelic haploid records that fit the HLS compile
-limits, runs quickLD's single-threaded BLIS CPU flow, then invokes the OpenCL
-FPGA kernel on the same in-memory data and checks its counts against a reference.
-
-```sh
-make test_fpga
-./test_fpga build/ld_top.xclbin ld_top quickLD/test_dataset/vcf/test_covid.vcf.gz 0 quickld_test_run
-```
-
-`test_fpga` is the Xilinx OpenCL host driver for an xclbin containing `ld_top`; it uploads
-the same packed VCF matrix, launches the kernel, reads back the count matrix,
-and validates every element. The xclbin's kernel name must match the second
-argument (normally `ld_top`).
-
-```sh
-make test_fpga OPENCL_ROOT=/path/to/opencl
-./test_fpga build/ld_top.xclbin ld_top
-```
-
-For a standalone FPGA test using the same generated input, reference checks,
-and trial counts as `test_hls`, without quickLD or a VCF:
-
-```sh
-make test_fpga_inline OPENCL_ROOT=/path/to/opencl
-./test_fpga_inline build/ld_top.xclbin 10 65 17 ld_top
-```
-
-Compile with the same `LD_PARAMS` as the xclbin, especially `LD_MAX_K`, which
-sets the packed input stride.
-Timing includes OpenCL launch and synchronization for each batch; transfers and
-setup are excluded, so it is not directly comparable to native call timing.

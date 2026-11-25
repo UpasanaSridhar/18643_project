@@ -3,7 +3,6 @@
 // Run with:   ./test_fpga kernel.xclbin ld_top [vcf] [device-index]
 #include "ld.hpp"
 #include "vcf_loader.hpp"
-#include "test_quickLD.hpp"
 #include "../hls/ld_config.hpp"
 
 #define CL_TARGET_OPENCL_VERSION 120
@@ -19,7 +18,7 @@
 
 int main(int argc, char** argv) {
     if (argc < 3) {
-        std::cerr << "Usage: test_fpga <kernel.xclbin> <kernel-name> [vcf] [device-index] [output-directory]\n";
+        std::cerr << "Usage: test_fpga <kernel.xclbin> <kernel-name> [vcf] [device-index]\n";
         return 2;
     }
     const std::string xclbin = argv[1];
@@ -30,7 +29,6 @@ int main(int argc, char** argv) {
     try {
         const auto input = load_haploid_vcf(vcf, ld_cfg::MAX_LOCI, ld_cfg::MAX_K);
         std::cout << "Loaded " << input.loci << " loci and " << input.samples << " samples\n" << std::flush;
-        run_quickld(input, argc > 5 ? argv[5] : "quickld_test_run");
         const std::size_t stride = packed_stride(input.samples);
         std::vector<uint64_t> hls_input(input.loci * ld_cfg::WORDS, 0);
         for (std::size_t locus = 0; locus < input.loci; ++locus)
