@@ -1,9 +1,10 @@
 # Linkage disequilibrium baseline starter
 
-For the Vitis HLS project:
+START HERE : For the Vitis HLS component:
 
 - **HLS component:** Add all files in `hls/`.
 - **Testbench:** Add `src/test_hls.cpp`, `hls/ld_config.hpp`, `src/ld.cpp`, and `include/ld.hpp`.
+Have it set to generate a Vivado IP (Lab 2 handout)
 
 ## FPGA integration in Vitis Unified IDE
 
